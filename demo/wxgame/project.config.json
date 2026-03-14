@@ -1,0 +1,36 @@
+{
+    "appid": "wxf40904ea6120ad08",
+    "compileType": "game",
+    "condition": {},
+    "description": "项目配置文件。",
+    "editorSetting": {
+        "tabIndent": "insertSpaces",
+        "tabSize": 4
+    },
+    "libVersion": "latest",
+    "packOptions": {
+        "ignore": [],
+        "include": []
+    },
+    "projectname": "GodotMiniGame",
+    "setting": {
+        "babelSetting": {
+            "disablePlugins": [],
+            "ignore": [],
+            "outputPath": ""
+        },
+        "coverView": false,
+        "enhance": false,
+        "es6": false,
+        "ignoreUploadUnusedFiles": true,
+        "minified": true,
+        "newFeature": true,
+        "packNpmRelationList": [],
+        "postcss": true,
+        "showShadowRootInWxmlPanel": false,
+        "swc": true,
+        "urlCheck": false,
+        "disableSWC": false
+    },
+    "simulatorPluginLibVersion": {}
+}

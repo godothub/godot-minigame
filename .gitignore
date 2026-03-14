@@ -1,0 +1,57 @@
+# Build artifacts
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.so
+*.dylib
+*.tmp
+**/*.os
+
+# Build directories
+/bin/
+/demo/bin/
+/.sconsign.dblite
+/godot-cpp/bin/
+/godot-cpp/gen/
+
+# Generated files
+/src/gen/
+*.gen.cpp
+*.gen.h
+
+# Cache files
+.scons_cache/
+__pycache__/
+*.pyc
+
+# Visual Studio files
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+*.tmp
+
+.private_release/
+
+demo/.godot
+demo/**/*.tpz
+resources/**/*.tpz
+demo/minigame
+GITHUB_SECRETS.md
+dist
+latest.json

@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://crfhw3utblg8t"]
+
+[ext_resource type="Script" uid="uid://v1duaribgx0b" path="res://margin_container.gd" id="1_r6qsq"]
+
+[node name="MarginContainer" type="MarginContainer" unique_id=1053351426]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+script = ExtResource("1_r6qsq")
+
+[node name="Control" type="Control" parent="." unique_id=1274659217]
+layout_mode = 2
+
+[node name="Button" type="Button" parent="Control" unique_id=2067353365]
+layout_mode = 1
+offset_right = 250.0
+offset_bottom = 129.0
+text = "aasadasdadas"

@@ -1,0 +1,36 @@
+# Sample configuration file for embedding
+plugin:
+  name: "Toolkit Addons"
+  version: "1.0.0"
+  author: "Claude Code"
+  description: "Comprehensive Godot editor plugin"
+
+features:
+  - file_management
+  - download_manager  
+  - version_checker
+  - resource_embedding
+  - yaml_parser
+
+settings:
+  default_download_directory: "downloads"
+  max_concurrent_downloads: 3
+  auto_extract_archives: true
+  check_updates_on_startup: true
+  update_check_interval: 86400  # 24 hours in seconds
+
+network:
+  timeout: 30000
+  user_agent: "ToolkitAddons/1.0"
+  ssl_verification: true
+  retry_attempts: 3
+
+ui:
+  dock_position: "left"
+  theme: "default"
+  show_progress_notifications: true
+  
+logging:
+  level: "info"
+  file: "toolkit.log"
+  max_size_mb: 10

@@ -1,0 +1,11 @@
+[configuration]
+
+entry_symbol = "toolkit_addons_library_init"
+compatibility_minimum = "4.1"
+
+[libraries]
+; Relative paths ensure that our GDExtension can be placed anywhere in the project directory.
+macos = "./bin/macos/libtoolkit-addons.macos.dylib"
+windows.x86_64 = "./bin/windows/toolkit-addons.windows.x86_64.dll"
+linux.x86_64 = "./bin/linux/libtoolkit-addons.linux.x86_64.so"
+wechat = "./bin/windows/toolkit-addons.windows.x86_64.dll"
