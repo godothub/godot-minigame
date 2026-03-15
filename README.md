@@ -45,14 +45,16 @@ git submodule update --init --recursive
 
 Release 需要提供：
 
-- `versions.yaml`
-- `versions.yaml` 中引用的 `*.tpz`
+- 索引 Release：全量 `versions.yaml`
+- 模板 Release：对应版本的 `*.tpz`
 
 示例：
 
 ```yaml
 godot4:
-  4.5.1: minigame4.5.1.1.tpz
+  4.5.1:
+    tag: 4.5.1
+    file: minigame4.5.1.tpz
 ```
 
 当前匹配规则：

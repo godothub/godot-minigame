@@ -612,7 +612,25 @@ Error TemplateManager::parse_versions_yaml(const String& yaml_content) {
 
     Dictionary parsed;
     String current_major;
+    String current_version;
+    Dictionary current_version_entry;
     PackedStringArray lines = yaml_content.split("\n", false);
+
+    auto flush_pending_version = [&]() {
+        if (current_major.is_empty() || current_version.is_empty()) {
+            current_version = "";
+            current_version_entry.clear();
+            return;
+        }
+
+        Dictionary versions = parsed[current_major];
+        if (current_version_entry.has("file") || current_version_entry.has("filename")) {
+            versions[current_version] = current_version_entry;
+            parsed[current_major] = versions;
+        }
+        current_version = "";
+        current_version_entry.clear();
+    };
 
     for (int i = 0; i < lines.size(); i++) {
         String raw_line = lines[i];
@@ -622,7 +640,13 @@ Error TemplateManager::parse_versions_yaml(const String& yaml_content) {
             continue;
         }
 
-        if (!raw_line.begins_with(" ") && trimmed.ends_with(":")) {
+        int indent = 0;
+        while (indent < raw_line.length() && raw_line[indent] == ' ') {
+            indent++;
+        }
+
+        if (indent == 0 && trimmed.ends_with(":")) {
+            flush_pending_version();
             current_major = _strip_wrapping_quotes(trimmed.substr(0, trimmed.length() - 1));
             if (!parsed.has(current_major)) {
                 parsed[current_major] = Dictionary();
@@ -639,16 +663,40 @@ Error TemplateManager::parse_versions_yaml(const String& yaml_content) {
             continue;
         }
 
-        String version_key = _strip_wrapping_quotes(trimmed.substr(0, separator_pos));
-        String filename = _strip_wrapping_quotes(trimmed.substr(separator_pos + 1));
-        if (version_key.is_empty() || filename.is_empty()) {
+        if (indent <= 2) {
+            flush_pending_version();
+
+            String version_key = _strip_wrapping_quotes(trimmed.substr(0, separator_pos));
+            String value_text = _strip_wrapping_quotes(trimmed.substr(separator_pos + 1));
+            if (version_key.is_empty()) {
+                continue;
+            }
+
+            Dictionary versions = parsed[current_major];
+            if (value_text.is_empty()) {
+                current_version = version_key;
+                current_version_entry.clear();
+            } else {
+                versions[version_key] = value_text;
+                parsed[current_major] = versions;
+            }
             continue;
         }
 
-        Dictionary versions = parsed[current_major];
-        versions[version_key] = filename;
-        parsed[current_major] = versions;
+        if (current_version.is_empty()) {
+            continue;
+        }
+
+        String child_key = _strip_wrapping_quotes(trimmed.substr(0, separator_pos));
+        String child_value = _strip_wrapping_quotes(trimmed.substr(separator_pos + 1));
+        if (child_key.is_empty() || child_value.is_empty()) {
+            continue;
+        }
+
+        current_version_entry[child_key] = child_value;
     }
+
+    flush_pending_version();
 
     if (parsed.is_empty()) {
         TOOLKIT_LOG_RICH("[color=red]Error: Invalid versions.yaml format[/color]");
@@ -694,7 +742,8 @@ Error TemplateManager::parse_versions_yaml(const String& yaml_content) {
                 filename_variant = versions[version];
             }
 
-            String filename = filename_variant;
+            Dictionary normalized_entry = normalize_template_entry(filename_variant, "");
+            String filename = String(normalized_entry.get("filename", ""));
 
             TOOLKIT_LOG("TemplateManager: Processing version '", version, "' -> '", filename, "' (key: ", version_key, " type: ", version_key.get_type(), ", value: ", filename_variant, " type: ", filename_variant.get_type(), ")");
 
@@ -706,13 +755,15 @@ Error TemplateManager::parse_versions_yaml(const String& yaml_content) {
             TemplateVersion template_ver;
             template_ver.godot_major = major;
             template_ver.version = version;
-            template_ver.filename = filename;
-            template_ver.is_embedded = is_template_embedded(filename);
+            template_ver.filename = String(normalized_entry.get("filename", ""));
+            template_ver.release_tag = String(normalized_entry.get("release_tag", ""));
+            template_ver.is_embedded = is_template_embedded(template_ver.filename);
 
             Dictionary version_info;
             version_info["godot_major"] = major;
             version_info["version"] = version;
-            version_info["filename"] = filename;
+            version_info["filename"] = template_ver.filename;
+            version_info["release_tag"] = template_ver.release_tag;
             version_info["is_embedded"] = template_ver.is_embedded;
 
             available_versions.append(version_info);
@@ -730,6 +781,39 @@ Array TemplateManager::get_available_versions() const {
 
 Dictionary TemplateManager::get_versions_data() const {
     return versions_cache;
+}
+
+Dictionary TemplateManager::normalize_template_entry(const Variant &entry, const String &fallback_release_tag) const {
+    Dictionary normalized;
+    normalized["filename"] = "";
+    normalized["release_tag"] = fallback_release_tag.strip_edges();
+
+    if (entry.get_type() == Variant::STRING) {
+        normalized["filename"] = String(entry).strip_edges();
+        return normalized;
+    }
+
+    if (entry.get_type() == Variant::DICTIONARY) {
+        Dictionary dict_entry = entry;
+        normalized["filename"] = String(dict_entry.get("file", dict_entry.get("filename", ""))).strip_edges();
+        normalized["release_tag"] = String(dict_entry.get("tag", dict_entry.get("release_tag", fallback_release_tag))).strip_edges();
+    }
+
+    return normalized;
+}
+
+String TemplateManager::find_release_tag_for_filename(const String &filename) const {
+    Array versions = get_available_versions();
+    for (int i = 0; i < versions.size(); i++) {
+        Dictionary version_info = versions[i];
+        if (String(version_info.get("filename", "")) == filename) {
+            String release_tag = String(version_info.get("release_tag", "")).strip_edges();
+            if (!release_tag.is_empty()) {
+                return release_tag;
+            }
+        }
+    }
+    return "";
 }
 
 String TemplateManager::get_best_version_for_editor() const {
@@ -808,20 +892,17 @@ String TemplateManager::get_latest_version_for_godot_major(const String& major_v
         return "";
     }
 
-    // Take the last version key (assuming sorted)
-    Variant latest_key = version_keys[version_keys.size() - 1];
-
-    // Handle both numeric and string keys from YAML parsing
-    Variant filename_variant;
-    if (versions.has(latest_key)) {
-        filename_variant = versions[latest_key];
-    } else {
-        String latest_version = latest_key;
-        filename_variant = versions[latest_version];
+    String latest_version = "";
+    for (int i = 0; i < version_keys.size(); i++) {
+        String candidate_version = String(version_keys[i]);
+        if (latest_version.is_empty() || compare_version_numbers(candidate_version, latest_version) > 0) {
+            latest_version = candidate_version;
+        }
     }
 
-    String result = filename_variant;
-    TOOLKIT_LOG("TemplateManager: Latest version for ", major_version, ": key=", latest_key, " -> filename=", result);
+    Dictionary normalized_entry = normalize_template_entry(versions[latest_version], "");
+    String result = normalized_entry.get("filename", "");
+    TOOLKIT_LOG("TemplateManager: Latest version for ", major_version, ": key=", latest_version, " -> filename=", result);
     return result;
 }
 
@@ -840,7 +921,18 @@ String TemplateManager::get_template_filename(const String& godot_major, const S
     }
 
     Dictionary versions = versions_cache[godot_major];
-    return versions[version];
+    Dictionary normalized_entry = normalize_template_entry(versions[version], "");
+    return normalized_entry.get("filename", "");
+}
+
+String TemplateManager::get_template_release_tag(const String& godot_major, const String& version) const {
+    if (!has_version(godot_major, version)) {
+        return "";
+    }
+
+    Dictionary versions = versions_cache[godot_major];
+    Dictionary normalized_entry = normalize_template_entry(versions[version], "");
+    return normalized_entry.get("release_tag", "");
 }
 
 bool TemplateManager::is_template_embedded(const String& filename) const {
@@ -1404,6 +1496,9 @@ String TemplateManager::get_update_manifest_url() const {
 }
 
 String TemplateManager::get_distribution_asset_url(const String& asset_name) const {
+    if (asset_name == "versions.yaml") {
+        return build_versions_url();
+    }
     return build_download_url(asset_name);
 }
 
@@ -1465,20 +1560,21 @@ String TemplateManager::build_release_download_url(DistributionProvider provider
 }
 
 String TemplateManager::build_download_url(const String& filename) const {
+    String resolved_release_tag = find_release_tag_for_filename(filename);
     switch (distribution_provider) {
         case DistributionProvider::GITHUB_RELEASE:
             return build_release_download_url(
                     DistributionProvider::GITHUB_RELEASE,
                     github_repo_owner,
                     github_repo_name,
-                    github_release_tag,
+                    resolved_release_tag.is_empty() ? github_release_tag : resolved_release_tag,
                     filename);
         case DistributionProvider::GITEE_RELEASE:
             return build_release_download_url(
                     DistributionProvider::GITEE_RELEASE,
                     gitee_repo_owner,
                     gitee_repo_name,
-                    gitee_release_tag,
+                    resolved_release_tag.is_empty() ? gitee_release_tag : resolved_release_tag,
                     filename);
         default:
             return "";
@@ -1640,13 +1736,9 @@ String TemplateManager::get_nearest_compatible_version(const String& target_vers
         String candidate_version = candidate_key;
 
         // Handle both numeric and string keys from YAML parsing
-        Variant filename_variant;
-        if (versions.has(candidate_key)) {
-            filename_variant = versions[candidate_key];
-        } else {
-            filename_variant = versions[candidate_version];
-        }
-        String candidate_filename = filename_variant;
+        Variant entry_variant = versions.has(candidate_key) ? versions[candidate_key] : versions[candidate_version];
+        Dictionary normalized_entry = normalize_template_entry(entry_variant, "");
+        String candidate_filename = normalized_entry.get("filename", "");
 
         TOOLKIT_LOG("TemplateManager: Checking candidate ", candidate_version, " -> ", candidate_filename, " (key: ", candidate_key, " type: ", candidate_key.get_type(), ")");
 
@@ -1700,11 +1792,14 @@ Array TemplateManager::get_compatible_versions_for_major(const String& major_ver
 
     for (int i = 0; i < version_keys.size(); i++) {
         String version = version_keys[i];
-        String filename = versions[version];
+        Dictionary normalized_entry = normalize_template_entry(versions[version], "");
+        String filename = normalized_entry.get("filename", "");
+        String release_tag = normalized_entry.get("release_tag", "");
 
         Dictionary version_info;
         version_info["version"] = version;
         version_info["filename"] = filename;
+        version_info["release_tag"] = release_tag;
         version_info["major_version"] = major_version;
         version_info["is_embedded"] = is_template_embedded(filename);
         version_info["is_downloaded"] = is_template_downloaded(filename);
@@ -1776,8 +1871,21 @@ String TemplateManager::dictionary_to_simple_yaml(const Dictionary& dict) const 
                 Variant sub_key_variant = sub_keys[j];
                 String sub_key = String(sub_key_variant);
                 Variant sub_value_variant = sub_dict[sub_key_variant];
-                String sub_value = String(sub_value_variant);
-                yaml_content += "  " + sub_key + ": " + sub_value + "\n";
+
+                if (sub_value_variant.get_type() == Variant::DICTIONARY) {
+                    Dictionary nested_dict = sub_value_variant;
+                    yaml_content += "  " + sub_key + ":\n";
+                    Array nested_keys = nested_dict.keys();
+                    for (int k = 0; k < nested_keys.size(); k++) {
+                        Variant nested_key_variant = nested_keys[k];
+                        String nested_key = String(nested_key_variant);
+                        String nested_value = String(nested_dict[nested_key_variant]);
+                        yaml_content += "    " + nested_key + ": " + nested_value + "\n";
+                    }
+                } else {
+                    String sub_value = String(sub_value_variant);
+                    yaml_content += "  " + sub_key + ": " + sub_value + "\n";
+                }
             }
         }
         yaml_content += "\n";

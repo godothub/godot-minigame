@@ -20,6 +20,7 @@ struct TemplateVersion {
     String godot_major;     // "godot3" or "godot4"
     String version;         // "4.4.0", "4.3.0", etc.
     String filename;        // "minigame4.4.0.1.tpz"
+    String release_tag;     // Release tag that actually contains the asset
     bool is_embedded;       // true if bundled in DLL
 };
 
@@ -71,6 +72,7 @@ public:
     String get_latest_version_for_godot_major(const String& major_version) const;
     bool has_version(const String& godot_major, const String& version) const;
     String get_template_filename(const String& godot_major, const String& version) const;
+    String get_template_release_tag(const String& godot_major, const String& version) const;
     Array get_compatible_versions_for_major(const String& major_version) const;
 
     // Template availability (priority: embedded -> cached -> remote)
@@ -167,6 +169,8 @@ private:
     bool is_template_available_anywhere(const String& filename) const;
     Error save_versions_to_local_cache();
     Error http_get_sync_follow_redirects(const String& url, PackedByteArray& r_body, int& r_response_code, Dictionary* r_response_headers = nullptr) const;
+    Dictionary normalize_template_entry(const Variant& entry, const String& fallback_release_tag = "") const;
+    String find_release_tag_for_filename(const String& filename) const;
     int compare_version_numbers(const String& version1, const String& version2) const;
     Array parse_version_components(const String& version) const;
     String dictionary_to_simple_yaml(const Dictionary& dict) const;
