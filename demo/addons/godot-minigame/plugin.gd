@@ -46,18 +46,31 @@ func _register_wechat_platform():
 		print("[GodotMinigame][plugin.gd] platform already added, skip")
 		return
 
-	if not ClassDB.class_exists("WeChatExportPlatform"):
-		push_warning("Godot Minigame: WeChatExportPlatform class is not available")
-		printerr("[GodotMinigame][plugin.gd] ClassDB missing WeChatExportPlatform")
-		return
-
 	if not wechat_platform or not is_instance_valid(wechat_platform):
-		wechat_platform = WeChatExportPlatform.new()
+		wechat_platform = _instantiate_wechat_platform()
+		if not wechat_platform:
+			return
+
 		print("[GodotMinigame][plugin.gd] new WeChatExportPlatform -> ", wechat_platform)
 
 	add_export_platform(wechat_platform)
 	wechat_platform_added = true
 	print("[GodotMinigame][plugin.gd] add_export_platform success, added=", wechat_platform_added)
+
+func _instantiate_wechat_platform():
+	const PLATFORM_CLASS_NAME := "WeChatExportPlatform"
+	if ClassDB.class_exists(PLATFORM_CLASS_NAME):
+		var instance = ClassDB.instantiate(PLATFORM_CLASS_NAME)
+		if instance:
+			return instance
+
+		push_warning("Godot Minigame: %s instantiation failed" % PLATFORM_CLASS_NAME)
+		printerr("[GodotMinigame][plugin.gd] failed to instantiate: ", PLATFORM_CLASS_NAME)
+		return null
+
+	push_warning("Godot Minigame: %s class is not available" % PLATFORM_CLASS_NAME)
+	printerr("[GodotMinigame][plugin.gd] ClassDB missing ", PLATFORM_CLASS_NAME)
+	return null
 
 func _unregister_wechat_platform():
 	print("[GodotMinigame][plugin.gd] _unregister_wechat_platform begin, added=", wechat_platform_added, " valid=", is_instance_valid(wechat_platform))
