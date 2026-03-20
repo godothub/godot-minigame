@@ -13,9 +13,9 @@ class MinigamePanel;
 class TapTapPanel;
 class SettingsPanel;
 
-// 主工具箱停靠面板
-class ToolkitDock : public godot::MarginContainer {
-    GDCLASS(ToolkitDock, godot::MarginContainer);
+// 主插件停靠面板
+class GodotMinigameDock : public godot::MarginContainer {
+    GDCLASS(GodotMinigameDock, godot::MarginContainer);
 
 private:
     godot::TabContainer* tab_container = nullptr;
@@ -29,8 +29,8 @@ protected:
     static void _bind_methods();
 
 public:
-    ToolkitDock();
-    ~ToolkitDock();
+    GodotMinigameDock();
+    ~GodotMinigameDock();
 
     virtual void _ready() override;
     virtual void _exit_tree() override;

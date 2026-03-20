@@ -7,8 +7,8 @@
 namespace toolkit {
 namespace editor {
 
-class ToolkitExportPlugin : public godot::EditorPlugin {
-    GDCLASS(ToolkitExportPlugin, godot::EditorPlugin);
+class GodotMinigameExportPlugin : public godot::EditorPlugin {
+    GDCLASS(GodotMinigameExportPlugin, godot::EditorPlugin);
 
 private:
     godot::Ref<WeChatExportPlatform> wechat_platform;
@@ -17,8 +17,8 @@ protected:
     static void _bind_methods();
 
 public:
-    ToolkitExportPlugin();
-    ~ToolkitExportPlugin();
+    GodotMinigameExportPlugin();
+    ~GodotMinigameExportPlugin();
 
     virtual void _enter_tree() override;
     virtual void _exit_tree() override;

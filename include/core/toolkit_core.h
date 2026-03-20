@@ -7,21 +7,21 @@
 namespace toolkit {
 namespace core {
 
-class ToolkitCore : public godot::RefCounted {
-    GDCLASS(ToolkitCore, godot::RefCounted);
+class GodotMinigameCore : public godot::RefCounted {
+    GDCLASS(GodotMinigameCore, godot::RefCounted);
 
 private:
-    static ToolkitCore* singleton;
+    static GodotMinigameCore* singleton;
 
 protected:
     static void _bind_methods();
 
 public:
-    ToolkitCore();
-    ~ToolkitCore();
+    GodotMinigameCore();
+    ~GodotMinigameCore();
 
     // Singleton
-    static ToolkitCore* get_singleton();
+    static GodotMinigameCore* get_singleton();
     // Initialization and shutdown are now handled by the GDExtension entry points
     // static void initialize();
     // static void shutdown();

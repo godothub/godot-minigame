@@ -32,17 +32,21 @@ private:
     enum class DistributionProvider {
         GITHUB_RELEASE = 0,
         GITEE_RELEASE = 1,
+        ATOMGIT_RELEASE = 2,
     };
 
     static TemplateManager* singleton;
 
-    DistributionProvider distribution_provider = DistributionProvider::GITHUB_RELEASE;
+    DistributionProvider distribution_provider = DistributionProvider::ATOMGIT_RELEASE;
     String github_repo_owner = "godothub";
     String github_repo_name = "godot-minigame";
     String github_release_tag = "latest";
     String gitee_repo_owner = "godothub";
     String gitee_repo_name = "godot-minigame";
     String gitee_release_tag = "latest";
+    String atomgit_repo_owner = "godothub";
+    String atomgit_repo_name = "godot-minigame";
+    String atomgit_release_tag = "latest";
 
     Dictionary versions_cache;
     Array available_versions;
@@ -119,6 +123,8 @@ public:
     Dictionary get_github_release_config() const;
     void set_gitee_release_config(const String& owner, const String& repo, const String& release_tag = "latest");
     Dictionary get_gitee_release_config() const;
+    void set_atomgit_release_config(const String& owner, const String& repo, const String& release_tag = "latest");
+    Dictionary get_atomgit_release_config() const;
     String get_versions_remote_url() const;
     String get_update_manifest_url() const;
     String get_distribution_asset_url(const String& asset_name) const;

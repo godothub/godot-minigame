@@ -68,6 +68,7 @@ void SettingsPanel::create_interface() {
 
 	distribution_provider_selector = memnew(OptionButton);
 	distribution_provider_selector->set_custom_minimum_size(Vector2(120, 0));
+	distribution_provider_selector->add_item("AtomGit");
 	distribution_provider_selector->add_item("GitHub");
 	distribution_provider_selector->add_item("Gitee");
 	distribution_provider_selector->connect("item_selected", callable_mp(this, &SettingsPanel::_on_distribution_provider_selected));
@@ -142,7 +143,7 @@ void SettingsPanel::create_interface() {
 }
 
 void SettingsPanel::refresh_distribution_info() {
-	String provider = "github";
+	String provider = "atomgit";
 	Dictionary config;
 
 	if (Engine::get_singleton()->has_singleton("TemplateManager")) {
@@ -159,7 +160,13 @@ void SettingsPanel::refresh_distribution_info() {
 	}
 
 	if (distribution_provider_selector) {
-		distribution_provider_selector->select(provider == "gitee" ? 1 : 0);
+		if (provider == "gitee") {
+			distribution_provider_selector->select(2);
+		} else if (provider == "github") {
+			distribution_provider_selector->select(1);
+		} else {
+			distribution_provider_selector->select(0);
+		}
 	}
 	if (owner_input) {
 		owner_input->set_text(String(config.get("owner", "")));
@@ -173,7 +180,12 @@ void SettingsPanel::refresh_distribution_info() {
 }
 
 void SettingsPanel::_on_distribution_provider_selected(int index) {
-	String provider = index == 1 ? String("gitee") : String("github");
+	String provider = "atomgit";
+	if (index == 1) {
+		provider = "github";
+	} else if (index == 2) {
+		provider = "gitee";
+	}
 
 	if (Engine::get_singleton()->has_singleton("TemplateManager")) {
 		Object *template_manager = Engine::get_singleton()->get_singleton("TemplateManager");

@@ -45,6 +45,9 @@ constexpr const char *TOOLKIT_EDITOR_METADATA_GITHUB_RELEASE_TAG = "github_relea
 constexpr const char *TOOLKIT_EDITOR_METADATA_GITEE_OWNER = "gitee_owner";
 constexpr const char *TOOLKIT_EDITOR_METADATA_GITEE_REPO = "gitee_repo";
 constexpr const char *TOOLKIT_EDITOR_METADATA_GITEE_RELEASE_TAG = "gitee_release_tag";
+constexpr const char *TOOLKIT_EDITOR_METADATA_ATOMGIT_OWNER = "atomgit_owner";
+constexpr const char *TOOLKIT_EDITOR_METADATA_ATOMGIT_REPO = "atomgit_repo";
+constexpr const char *TOOLKIT_EDITOR_METADATA_ATOMGIT_RELEASE_TAG = "atomgit_release_tag";
 
 String _sanitize_cache_component(const String &value) {
     String sanitized = value.strip_edges().to_lower();
@@ -297,6 +300,11 @@ void TemplateManager::_bind_methods() {
             &TemplateManager::set_gitee_release_config,
             DEFVAL("latest"));
     ClassDB::bind_method(D_METHOD("get_gitee_release_config"), &TemplateManager::get_gitee_release_config);
+    ClassDB::bind_method(
+            D_METHOD("set_atomgit_release_config", "owner", "repo", "release_tag"),
+            &TemplateManager::set_atomgit_release_config,
+            DEFVAL("latest"));
+    ClassDB::bind_method(D_METHOD("get_atomgit_release_config"), &TemplateManager::get_atomgit_release_config);
     ClassDB::bind_method(D_METHOD("get_versions_remote_url"), &TemplateManager::get_versions_remote_url);
     ClassDB::bind_method(D_METHOD("get_update_manifest_url"), &TemplateManager::get_update_manifest_url);
     ClassDB::bind_method(D_METHOD("get_distribution_asset_url", "asset_name"), &TemplateManager::get_distribution_asset_url);
@@ -415,7 +423,7 @@ Error TemplateManager::http_get_sync_follow_redirects(const String &url, PackedB
         }
 
         PackedStringArray headers;
-        headers.append("User-Agent: Toolkit-Addons/1.0");
+        headers.append("User-Agent: GodotMinigame/1.0");
         headers.append("Accept: */*");
         Error request_err = client->request(HTTPClient::METHOD_GET, request_path, headers);
         if (request_err != OK) {
@@ -1394,17 +1402,22 @@ void TemplateManager::set_distribution_provider(const String& provider) {
 
 String TemplateManager::get_distribution_provider() const {
     switch (distribution_provider) {
+        case DistributionProvider::ATOMGIT_RELEASE:
+            return "atomgit";
         case DistributionProvider::GITHUB_RELEASE:
             return "github";
         case DistributionProvider::GITEE_RELEASE:
             return "gitee";
         default:
-            return "github";
+            return "atomgit";
     }
 }
 
 void TemplateManager::set_current_release_config(const String& owner, const String& repo, const String& release_tag) {
     switch (distribution_provider) {
+        case DistributionProvider::ATOMGIT_RELEASE:
+            set_atomgit_release_config(owner, repo, release_tag);
+            break;
         case DistributionProvider::GITHUB_RELEASE:
             set_github_release_config(owner, repo, release_tag);
             break;
@@ -1418,6 +1431,8 @@ void TemplateManager::set_current_release_config(const String& owner, const Stri
 
 Dictionary TemplateManager::get_current_release_config() const {
     switch (distribution_provider) {
+        case DistributionProvider::ATOMGIT_RELEASE:
+            return get_atomgit_release_config();
         case DistributionProvider::GITHUB_RELEASE:
             return get_github_release_config();
         case DistributionProvider::GITEE_RELEASE:
@@ -1487,6 +1502,36 @@ Dictionary TemplateManager::get_gitee_release_config() const {
     return config;
 }
 
+void TemplateManager::set_atomgit_release_config(const String& owner, const String& repo, const String& release_tag) {
+    String normalized_owner = owner.strip_edges();
+    String normalized_repo = repo.strip_edges();
+    String normalized_tag = release_tag.strip_edges();
+    if (normalized_tag.is_empty()) {
+        normalized_tag = "latest";
+    }
+
+    bool changed = atomgit_repo_owner != normalized_owner ||
+            atomgit_repo_name != normalized_repo ||
+            atomgit_release_tag != normalized_tag;
+
+    atomgit_repo_owner = normalized_owner;
+    atomgit_repo_name = normalized_repo;
+    atomgit_release_tag = normalized_tag;
+    persist_distribution_preferences();
+
+    if (changed && distribution_provider == DistributionProvider::ATOMGIT_RELEASE) {
+        reload_active_distribution_cache(true);
+    }
+}
+
+Dictionary TemplateManager::get_atomgit_release_config() const {
+    Dictionary config;
+    config["owner"] = atomgit_repo_owner;
+    config["repo"] = atomgit_repo_name;
+    config["release_tag"] = atomgit_release_tag;
+    return config;
+}
+
 String TemplateManager::get_versions_remote_url() const {
     return build_versions_url();
 }
@@ -1512,6 +1557,13 @@ int TemplateManager::get_download_timeout() const {
 
 String TemplateManager::build_versions_url() const {
     switch (distribution_provider) {
+        case DistributionProvider::ATOMGIT_RELEASE:
+            return build_release_download_url(
+                    DistributionProvider::ATOMGIT_RELEASE,
+                    atomgit_repo_owner,
+                    atomgit_repo_name,
+                    atomgit_release_tag,
+                    "versions.yaml");
         case DistributionProvider::GITHUB_RELEASE:
             return build_release_download_url(
                     DistributionProvider::GITHUB_RELEASE,
@@ -1547,6 +1599,11 @@ String TemplateManager::build_release_download_url(DistributionProvider provider
     }
 
     switch (provider) {
+        case DistributionProvider::ATOMGIT_RELEASE:
+            if (normalized_tag.to_lower() == "latest") {
+                return "https://atomgit.com/" + normalized_owner + "/" + normalized_repo + "/releases/latest/download/" + normalized_filename;
+            }
+            return "https://atomgit.com/" + normalized_owner + "/" + normalized_repo + "/releases/download/" + normalized_tag + "/" + normalized_filename;
         case DistributionProvider::GITHUB_RELEASE:
             if (normalized_tag.to_lower() == "latest") {
                 return "https://github.com/" + normalized_owner + "/" + normalized_repo + "/releases/latest/download/" + normalized_filename;
@@ -1562,6 +1619,13 @@ String TemplateManager::build_release_download_url(DistributionProvider provider
 String TemplateManager::build_download_url(const String& filename) const {
     String resolved_release_tag = find_release_tag_for_filename(filename);
     switch (distribution_provider) {
+        case DistributionProvider::ATOMGIT_RELEASE:
+            return build_release_download_url(
+                    DistributionProvider::ATOMGIT_RELEASE,
+                    atomgit_repo_owner,
+                    atomgit_repo_name,
+                    resolved_release_tag.is_empty() ? atomgit_release_tag : resolved_release_tag,
+                    filename);
         case DistributionProvider::GITHUB_RELEASE:
             return build_release_download_url(
                     DistributionProvider::GITHUB_RELEASE,
@@ -1922,7 +1986,9 @@ Error TemplateManager::initialize_template_system() {
 bool TemplateManager::apply_distribution_provider(const String& provider, bool persist_selection, bool refresh_version_cache) {
     String normalized = provider.strip_edges().to_lower();
     DistributionProvider next_provider;
-    if (normalized == "github" || normalized == "github_release" || normalized == "github-release") {
+    if (normalized == "atomgit" || normalized == "atomgit_release" || normalized == "atomgit-release") {
+        next_provider = DistributionProvider::ATOMGIT_RELEASE;
+    } else if (normalized == "github" || normalized == "github_release" || normalized == "github-release") {
         next_provider = DistributionProvider::GITHUB_RELEASE;
     } else if (normalized == "gitee" || normalized == "gitee_release" || normalized == "gitee-release") {
         next_provider = DistributionProvider::GITEE_RELEASE;
@@ -2040,6 +2106,45 @@ void TemplateManager::load_distribution_preferences() {
         gitee_release_tag = "latest";
     }
 
+    String atomgit_owner_value = String(editor_settings->get_project_metadata(
+            TOOLKIT_EDITOR_METADATA_SECTION,
+            TOOLKIT_EDITOR_METADATA_ATOMGIT_OWNER,
+            String("")));
+    if (atomgit_owner_value.is_empty()) {
+        atomgit_owner_value = String(editor_settings->get_project_metadata(
+                TOOLKIT_EDITOR_METADATA_SECTION_LEGACY,
+                TOOLKIT_EDITOR_METADATA_ATOMGIT_OWNER,
+                atomgit_repo_owner));
+    }
+    atomgit_repo_owner = atomgit_owner_value.strip_edges();
+
+    String atomgit_repo_value = String(editor_settings->get_project_metadata(
+            TOOLKIT_EDITOR_METADATA_SECTION,
+            TOOLKIT_EDITOR_METADATA_ATOMGIT_REPO,
+            String("")));
+    if (atomgit_repo_value.is_empty()) {
+        atomgit_repo_value = String(editor_settings->get_project_metadata(
+                TOOLKIT_EDITOR_METADATA_SECTION_LEGACY,
+                TOOLKIT_EDITOR_METADATA_ATOMGIT_REPO,
+                atomgit_repo_name));
+    }
+    atomgit_repo_name = atomgit_repo_value.strip_edges();
+
+    String atomgit_tag_value = String(editor_settings->get_project_metadata(
+            TOOLKIT_EDITOR_METADATA_SECTION,
+            TOOLKIT_EDITOR_METADATA_ATOMGIT_RELEASE_TAG,
+            String("")));
+    if (atomgit_tag_value.is_empty()) {
+        atomgit_tag_value = String(editor_settings->get_project_metadata(
+                TOOLKIT_EDITOR_METADATA_SECTION_LEGACY,
+                TOOLKIT_EDITOR_METADATA_ATOMGIT_RELEASE_TAG,
+                atomgit_release_tag));
+    }
+    atomgit_release_tag = atomgit_tag_value.strip_edges();
+    if (atomgit_release_tag.is_empty()) {
+        atomgit_release_tag = "latest";
+    }
+
     String provider_value = String(editor_settings->get_project_metadata(
             TOOLKIT_EDITOR_METADATA_SECTION,
             TOOLKIT_EDITOR_METADATA_DISTRIBUTION_PROVIDER,
@@ -2048,7 +2153,7 @@ void TemplateManager::load_distribution_preferences() {
         provider_value = String(editor_settings->get_project_metadata(
                 TOOLKIT_EDITOR_METADATA_SECTION_LEGACY,
                 TOOLKIT_EDITOR_METADATA_DISTRIBUTION_PROVIDER,
-                String("github")));
+                String("atomgit")));
     }
     String provider = provider_value;
     apply_distribution_provider(provider, false, false);
@@ -2067,6 +2172,15 @@ void TemplateManager::load_distribution_preferences() {
     if (!env_owner.is_empty() || !env_repo.is_empty() || !env_tag.is_empty()) {
         String effective_tag = env_tag.is_empty() ? String("latest") : env_tag;
         switch (distribution_provider) {
+            case DistributionProvider::ATOMGIT_RELEASE:
+                if (!env_owner.is_empty()) {
+                    atomgit_repo_owner = env_owner;
+                }
+                if (!env_repo.is_empty()) {
+                    atomgit_repo_name = env_repo;
+                }
+                atomgit_release_tag = effective_tag;
+                break;
             case DistributionProvider::GITHUB_RELEASE:
                 if (!env_owner.is_empty()) {
                     github_repo_owner = env_owner;
@@ -2137,6 +2251,18 @@ void TemplateManager::persist_distribution_preferences() const {
             TOOLKIT_EDITOR_METADATA_SECTION,
             TOOLKIT_EDITOR_METADATA_GITEE_RELEASE_TAG,
             gitee_release_tag);
+    editor_settings->set_project_metadata(
+            TOOLKIT_EDITOR_METADATA_SECTION,
+            TOOLKIT_EDITOR_METADATA_ATOMGIT_OWNER,
+            atomgit_repo_owner);
+    editor_settings->set_project_metadata(
+            TOOLKIT_EDITOR_METADATA_SECTION,
+            TOOLKIT_EDITOR_METADATA_ATOMGIT_REPO,
+            atomgit_repo_name);
+    editor_settings->set_project_metadata(
+            TOOLKIT_EDITOR_METADATA_SECTION,
+            TOOLKIT_EDITOR_METADATA_ATOMGIT_RELEASE_TAG,
+            atomgit_release_tag);
 }
 
 void TemplateManager::reload_active_distribution_cache(bool load_remote_versions) {
@@ -2163,6 +2289,11 @@ String TemplateManager::get_distribution_cache_root_dir() const {
     String release_tag;
 
     switch (distribution_provider) {
+        case DistributionProvider::ATOMGIT_RELEASE:
+            owner = atomgit_repo_owner;
+            repo = atomgit_repo_name;
+            release_tag = atomgit_release_tag;
+            break;
         case DistributionProvider::GITHUB_RELEASE:
             owner = github_repo_owner;
             repo = github_repo_name;

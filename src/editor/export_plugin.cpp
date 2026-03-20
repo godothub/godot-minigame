@@ -7,13 +7,13 @@ using namespace godot;
 namespace toolkit {
 namespace editor {
 
-void ToolkitExportPlugin::_bind_methods() {
+void GodotMinigameExportPlugin::_bind_methods() {
 }
 
-ToolkitExportPlugin::ToolkitExportPlugin() {
+GodotMinigameExportPlugin::GodotMinigameExportPlugin() {
 }
 
-ToolkitExportPlugin::~ToolkitExportPlugin() {
+GodotMinigameExportPlugin::~GodotMinigameExportPlugin() {
     // Ensure platform is removed before destruction
     if (wechat_platform.is_valid()) {
         // Platform should already be removed in _exit_tree
@@ -21,8 +21,8 @@ ToolkitExportPlugin::~ToolkitExportPlugin() {
     }
 }
 
-void ToolkitExportPlugin::_enter_tree() {
-    TOOLKIT_LOG("ToolkitExportPlugin: _enter_tree");
+void GodotMinigameExportPlugin::_enter_tree() {
+    TOOLKIT_LOG("GodotMinigameExportPlugin: _enter_tree");
     
     // Always create a fresh platform instance when entering tree
     if (!wechat_platform.is_valid()) {
@@ -30,17 +30,17 @@ void ToolkitExportPlugin::_enter_tree() {
     }
     add_export_platform(wechat_platform);
     
-    TOOLKIT_LOG("ToolkitExportPlugin: Export platform added");
+    TOOLKIT_LOG("GodotMinigameExportPlugin: Export platform added");
 }
 
-void ToolkitExportPlugin::_exit_tree() {
-    TOOLKIT_LOG("ToolkitExportPlugin: _exit_tree");
+void GodotMinigameExportPlugin::_exit_tree() {
+    TOOLKIT_LOG("GodotMinigameExportPlugin: _exit_tree");
     
     // Remove the WeChat export platform
     if (wechat_platform.is_valid()) {
         remove_export_platform(wechat_platform);
         wechat_platform.unref();  // Release the reference so new instance is created on re-enter
-        TOOLKIT_LOG("ToolkitExportPlugin: Export platform removed");
+        TOOLKIT_LOG("GodotMinigameExportPlugin: Export platform removed");
     }
 }
 

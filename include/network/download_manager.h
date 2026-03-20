@@ -95,7 +95,7 @@ private:
     
     int max_concurrent = 3;
     int64_t global_timeout = 30000;
-    String user_agent = "ToolkitAddons/1.0";
+    String user_agent = "GodotMinigame/1.0";
     Dictionary global_headers;
     bool ssl_verification = true;
     

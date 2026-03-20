@@ -20,10 +20,25 @@ func _exit_tree():
 		dock.queue_free()
 
 func _initialize_plugin():
-	dock = ToolkitDock.new()
-	add_control_to_bottom_panel(dock, "工具箱")
+	dock = _instantiate_dock()
+	if dock:
+		add_control_to_bottom_panel(dock, "Minigame")
 
 	_register_wechat_platform()
+
+func _instantiate_dock():
+	const DOCK_CLASS_NAME := "GodotMinigameDock"
+	if ClassDB.class_exists(DOCK_CLASS_NAME):
+		var instance = ClassDB.instantiate(DOCK_CLASS_NAME)
+		if instance is Control:
+			return instance
+
+		push_warning("Godot Minigame: %s is not a Control" % DOCK_CLASS_NAME)
+		return null
+
+	push_warning("Godot Minigame: %s class is not available" % DOCK_CLASS_NAME)
+	printerr("[GodotMinigame][plugin.gd] dock class not found: ", DOCK_CLASS_NAME)
+	return null
 
 func _register_wechat_platform():
 	print("[GodotMinigame][plugin.gd] _register_wechat_platform begin")

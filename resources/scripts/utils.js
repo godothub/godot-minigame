@@ -1,7 +1,7 @@
 // JavaScript utilities for the plugin
 // This will be embedded and available at runtime
 
-const ToolkitUtils = {
+const GodotMinigameUtils = {
     // File utilities
     formatBytes: function(bytes, decimals = 2) {
         if (bytes === 0) return '0 Bytes';
@@ -109,5 +109,5 @@ const ToolkitUtils = {
 
 // Export for Node.js-like environments
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ToolkitUtils;
+    module.exports = GodotMinigameUtils;
 }

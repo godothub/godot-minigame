@@ -129,14 +129,14 @@ void WeChatExportPlatform::_show_download_progress_dialog(const String &p_filena
     export_progress_value = 0.0;
 
     download_overlay = memnew(Control);
-    download_overlay->set_name("ToolkitDownloadOverlay");
+    download_overlay->set_name("GodotMinigameDownloadOverlay");
     download_overlay->set_anchors_preset(Control::PRESET_FULL_RECT);
     download_overlay->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
     parent->add_child(download_overlay);
     parent->move_child(download_overlay, parent->get_child_count() - 1);
 
     download_panel = memnew(PanelContainer);
-    download_panel->set_name("ToolkitDownloadPanel");
+    download_panel->set_name("GodotMinigameDownloadPanel");
     download_panel->set_anchors_preset(Control::PRESET_CENTER);
     download_panel->set_offset(SIDE_LEFT, -230.0);
     download_panel->set_offset(SIDE_TOP, -70.0);

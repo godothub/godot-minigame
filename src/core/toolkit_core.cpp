@@ -20,26 +20,26 @@ namespace toolkit {
 namespace core {
 
 // Static member definitions
-ToolkitCore* ToolkitCore::singleton = nullptr;
+GodotMinigameCore* GodotMinigameCore::singleton = nullptr;
 
-ToolkitCore* ToolkitCore::get_singleton() {
+GodotMinigameCore* GodotMinigameCore::get_singleton() {
     return singleton;
 }
 
 // initialize() and shutdown() are removed as they are now handled by register_types.cpp
 
-ToolkitCore::ToolkitCore() {
+GodotMinigameCore::GodotMinigameCore() {
 }
 
-ToolkitCore::~ToolkitCore() {
+GodotMinigameCore::~GodotMinigameCore() {
 }
 
 // --- Template Management API ---
 
-void ToolkitCore::initialize_template_system() {
+void GodotMinigameCore::initialize_template_system() {
     // Safe singleton access with engine registry check
     if (!Engine::get_singleton()->has_singleton("TemplateManager")) {
-        TOOLKIT_LOG("ToolkitCore: TemplateManager singleton not available");
+        TOOLKIT_LOG("GodotMinigameCore: TemplateManager singleton not available");
         return;
     }
 
@@ -49,7 +49,7 @@ void ToolkitCore::initialize_template_system() {
     }
 }
 
-Array ToolkitCore::get_available_templates() const {
+Array GodotMinigameCore::get_available_templates() const {
     if (!Engine::get_singleton()->has_singleton("TemplateManager")) {
         return Array();
     }
@@ -61,7 +61,7 @@ Array ToolkitCore::get_available_templates() const {
     return Array();
 }
 
-String ToolkitCore::get_editor_template_status() const {
+String GodotMinigameCore::get_editor_template_status() const {
     if (!Engine::get_singleton()->has_singleton("TemplateManager")) {
         return "not_initialized";
     }
@@ -73,7 +73,7 @@ String ToolkitCore::get_editor_template_status() const {
     return "not_initialized";
 }
 
-bool ToolkitCore::has_template_updates() const {
+bool GodotMinigameCore::has_template_updates() const {
     if (!Engine::get_singleton()->has_singleton("TemplateManager")) {
         return false;
     }
@@ -85,7 +85,7 @@ bool ToolkitCore::has_template_updates() const {
     return false;
 }
 
-Array ToolkitCore::get_missing_templates() const {
+Array GodotMinigameCore::get_missing_templates() const {
     if (!Engine::get_singleton()->has_singleton("TemplateManager")) {
         return Array();
     }
@@ -97,7 +97,7 @@ Array ToolkitCore::get_missing_templates() const {
     return Array();
 }
 
-Error ToolkitCore::download_template(const String& filename) {
+Error GodotMinigameCore::download_template(const String& filename) {
     if (!Engine::get_singleton()->has_singleton("TemplateManager")) {
         return ERR_UNCONFIGURED;
     }
@@ -110,22 +110,22 @@ Error ToolkitCore::download_template(const String& filename) {
 }
 
 
-bool ToolkitCore::extract_template(const String& template_name, const String& output_dir) {
-    TOOLKIT_LOG("ToolkitCore: Extracting template '", template_name, "' to '", output_dir, "'");
+bool GodotMinigameCore::extract_template(const String& template_name, const String& output_dir) {
+    TOOLKIT_LOG("GodotMinigameCore: Extracting template '", template_name, "' to '", output_dir, "'");
 
     // CRITICAL FIX: Safe singleton access with engine registry check
     if (!Engine::get_singleton()->has_singleton("TemplateManager")) {
-        TOOLKIT_LOG_RICH("[color=red]ToolkitCore: TemplateManager singleton not available in engine registry[/color]");
+        TOOLKIT_LOG_RICH("[color=red]GodotMinigameCore: TemplateManager singleton not available in engine registry[/color]");
         return false;
     }
 
     TemplateManager* tm = TemplateManager::get_singleton();
     if (tm) {
         String template_path = tm->get_template_path(template_name);
-        TOOLKIT_LOG("ToolkitCore: Template path: '", template_path, "'");
+        TOOLKIT_LOG("GodotMinigameCore: Template path: '", template_path, "'");
 
         if (template_path.is_empty()) {
-            TOOLKIT_LOG_RICH("[color=red]ToolkitCore: Template path is empty for '", template_name, "'[/color]");
+            TOOLKIT_LOG_RICH("[color=red]GodotMinigameCore: Template path is empty for '", template_name, "'[/color]");
             return false;
         }
 
@@ -133,23 +133,23 @@ bool ToolkitCore::extract_template(const String& template_name, const String& ou
         Error result = tm->extract_template(template_path, output_dir);
         bool success = (result == OK);
 
-        TOOLKIT_LOG("ToolkitCore: Extraction result: ", result, " (success: ", success, ")");
+        TOOLKIT_LOG("GodotMinigameCore: Extraction result: ", result, " (success: ", success, ")");
         return success;
     }
 
-    TOOLKIT_LOG_RICH("[color=red]ToolkitCore: Template manager not available[/color]");
+    TOOLKIT_LOG_RICH("[color=red]GodotMinigameCore: Template manager not available[/color]");
     return false;
 }
 
-void ToolkitCore::_bind_methods() {
+void GodotMinigameCore::_bind_methods() {
     // Template Management
-    ClassDB::bind_method(D_METHOD("initialize_template_system"), &ToolkitCore::initialize_template_system);
-    ClassDB::bind_method(D_METHOD("get_available_templates"), &ToolkitCore::get_available_templates);
-    ClassDB::bind_method(D_METHOD("get_editor_template_status"), &ToolkitCore::get_editor_template_status);
-    ClassDB::bind_method(D_METHOD("has_template_updates"), &ToolkitCore::has_template_updates);
-    ClassDB::bind_method(D_METHOD("get_missing_templates"), &ToolkitCore::get_missing_templates);
-    ClassDB::bind_method(D_METHOD("download_template", "filename"), &ToolkitCore::download_template);
-    ClassDB::bind_method(D_METHOD("extract_template", "template_name", "output_dir"), &ToolkitCore::extract_template);
+    ClassDB::bind_method(D_METHOD("initialize_template_system"), &GodotMinigameCore::initialize_template_system);
+    ClassDB::bind_method(D_METHOD("get_available_templates"), &GodotMinigameCore::get_available_templates);
+    ClassDB::bind_method(D_METHOD("get_editor_template_status"), &GodotMinigameCore::get_editor_template_status);
+    ClassDB::bind_method(D_METHOD("has_template_updates"), &GodotMinigameCore::has_template_updates);
+    ClassDB::bind_method(D_METHOD("get_missing_templates"), &GodotMinigameCore::get_missing_templates);
+    ClassDB::bind_method(D_METHOD("download_template", "filename"), &GodotMinigameCore::download_template);
+    ClassDB::bind_method(D_METHOD("extract_template", "template_name", "output_dir"), &GodotMinigameCore::extract_template);
 }
 
 } // namespace core

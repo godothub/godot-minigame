@@ -21,7 +21,7 @@ settings:
 
 network:
   timeout: 30000
-  user_agent: "ToolkitAddons/1.0"
+  user_agent: "GodotMinigame/1.0"
   ssl_verification: true
   retry_attempts: 3
 
