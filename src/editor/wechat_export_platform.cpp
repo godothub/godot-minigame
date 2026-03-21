@@ -31,6 +31,8 @@ namespace editor {
 void WeChatExportPlatform::_bind_methods() {
 }
 
+static constexpr int WECHAT_EXPORT_LOGO_SIZE = 32;
+
 static String _describe_export_error(Error p_error) {
     switch (p_error) {
         case OK:
@@ -52,6 +54,24 @@ static String _describe_export_error(Error p_error) {
         default:
             return "unknown_error";
     }
+}
+
+static Ref<Texture2D> _normalize_export_logo_size(const Ref<Texture2D> &p_texture) {
+    if (!p_texture.is_valid()) {
+        return Ref<Texture2D>();
+    }
+
+    Ref<Image> image = p_texture->get_image();
+    if (image.is_null()) {
+        return p_texture;
+    }
+
+    if (image->get_width() == WECHAT_EXPORT_LOGO_SIZE && image->get_height() == WECHAT_EXPORT_LOGO_SIZE) {
+        return p_texture;
+    }
+
+    image->resize(WECHAT_EXPORT_LOGO_SIZE, WECHAT_EXPORT_LOGO_SIZE, Image::INTERPOLATE_LANCZOS);
+    return ImageTexture::create_from_image(image);
 }
 
 static Ref<Texture2D> _load_wechat_logo_fallback() {
@@ -605,6 +625,7 @@ WeChatExportPlatform::WeChatExportPlatform() {
     if (!logo.is_valid()) {
         logo = _load_wechat_logo_fallback();
     }
+    logo = _normalize_export_logo_size(logo);
     if (!logo.is_valid()) {
         UtilityFunctions::printerr("[GodotMinigame][WeChatExportPlatform] logo is still null after all fallbacks");
     }
