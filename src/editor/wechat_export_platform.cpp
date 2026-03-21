@@ -31,7 +31,32 @@ namespace editor {
 void WeChatExportPlatform::_bind_methods() {
 }
 
-static constexpr int WECHAT_EXPORT_LOGO_SIZE = 32;
+static float _get_export_logo_editor_scale() {
+    EditorInterface *editor = EditorInterface::get_singleton();
+    if (editor) {
+        return editor->get_editor_scale();
+    }
+    return 1.0f;
+}
+
+static Ref<Texture2D> _load_wechat_logo_svg(const String &path) {
+    PackedByteArray svg_data = FileAccess::get_file_as_bytes(path);
+    if (svg_data.is_empty()) {
+        return Ref<Texture2D>();
+    }
+
+    Ref<Image> image = memnew(Image);
+    if (image.is_null()) {
+        return Ref<Texture2D>();
+    }
+
+    Error err = image->load_svg_from_buffer(svg_data, _get_export_logo_editor_scale());
+    if (err != OK) {
+        return Ref<Texture2D>();
+    }
+
+    return ImageTexture::create_from_image(image);
+}
 
 static String _describe_export_error(Error p_error) {
     switch (p_error) {
@@ -56,33 +81,15 @@ static String _describe_export_error(Error p_error) {
     }
 }
 
-static Ref<Texture2D> _normalize_export_logo_size(const Ref<Texture2D> &p_texture) {
-    if (!p_texture.is_valid()) {
-        return Ref<Texture2D>();
-    }
-
-    Ref<Image> image = p_texture->get_image();
-    if (image.is_null()) {
-        return p_texture;
-    }
-
-    if (image->get_width() == WECHAT_EXPORT_LOGO_SIZE && image->get_height() == WECHAT_EXPORT_LOGO_SIZE) {
-        return p_texture;
-    }
-
-    image->resize(WECHAT_EXPORT_LOGO_SIZE, WECHAT_EXPORT_LOGO_SIZE, Image::INTERPOLATE_LANCZOS);
-    return ImageTexture::create_from_image(image);
-}
-
 static Ref<Texture2D> _load_wechat_logo_fallback() {
     const char *logo_paths[] = {
-        "res://resources/assets/mini_game_icon.png",
-        "res://addons/godot-minigame/resources/assets/mini_game_icon.png",
+        "res://resources/assets/icon.svg",
+        "res://addons/godot-minigame/resources/assets/icon.svg",
         nullptr
     };
 
     for (int i = 0; logo_paths[i] != nullptr; i++) {
-        Ref<Texture2D> tex = ResourceLoader::get_singleton()->load(String::utf8(logo_paths[i]));
+        Ref<Texture2D> tex = _load_wechat_logo_svg(String::utf8(logo_paths[i]));
         if (tex.is_valid()) {
             UtilityFunctions::print("[GodotMinigame][WeChatExportPlatform] fallback logo loaded from ", String::utf8(logo_paths[i]));
             return tex;
@@ -90,7 +97,11 @@ static Ref<Texture2D> _load_wechat_logo_fallback() {
     }
 
     // Final fallback: create a placeholder so export platform entry is never icon-less.
-    Ref<Image> image = Image::create_empty(48, 48, false, Image::FORMAT_RGBA8);
+    int logo_size = int(_get_export_logo_editor_scale() * 32.0f + 0.5f);
+    if (logo_size < 1) {
+        logo_size = 1;
+    }
+    Ref<Image> image = Image::create_empty(logo_size, logo_size, false, Image::FORMAT_RGBA8);
     if (image.is_valid()) {
         image->fill(Color(0.16, 0.67, 0.35, 1.0));
         UtilityFunctions::print("[GodotMinigame][WeChatExportPlatform] using generated placeholder logo");
@@ -620,12 +631,11 @@ WeChatExportPlatform::WeChatExportPlatform() {
 #else
     UtilityFunctions::print("[GodotMinigame][WeChatExportPlatform] ctor, EMBED_RESOURCES=OFF");
 #endif
-    logo = load_embedded_icon("resources/assets/mini_game_icon.png");
+    logo = load_embedded_icon("resources/assets/icon.svg");
     UtilityFunctions::print("[GodotMinigame][WeChatExportPlatform] embedded logo valid=", logo.is_valid());
     if (!logo.is_valid()) {
         logo = _load_wechat_logo_fallback();
     }
-    logo = _normalize_export_logo_size(logo);
     if (!logo.is_valid()) {
         UtilityFunctions::printerr("[GodotMinigame][WeChatExportPlatform] logo is still null after all fallbacks");
     }

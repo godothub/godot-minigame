@@ -1,4 +1,5 @@
 #include "editor/editor_utils.h"
+#include <godot_cpp/classes/editor_interface.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
@@ -21,6 +22,12 @@ godot::Ref<godot::Texture2D> load_embedded_icon(const godot::String& resource_pa
             godot::Error err = godot::ERR_CANT_OPEN;
             if (resource_path.ends_with(".png")) {
                 err = image->load_png_from_buffer(image_data);
+            } else if (resource_path.ends_with(".svg")) {
+                float editor_scale = 1.0f;
+                if (godot::EditorInterface::get_singleton()) {
+                    editor_scale = godot::EditorInterface::get_singleton()->get_editor_scale();
+                }
+                err = image->load_svg_from_buffer(image_data, editor_scale);
             } else if (resource_path.ends_with(".jpg") || resource_path.ends_with(".jpeg")) {
                 err = image->load_jpg_from_buffer(image_data);
             } else if (resource_path.ends_with(".webp")) {
