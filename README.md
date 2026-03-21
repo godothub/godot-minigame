@@ -25,7 +25,7 @@ git submodule update --init --recursive
 
 也可以按平台选择：
 
-- `./build_win.sh`
+- `build_win.bat`
 - `./build_linux.sh`
 - `./build_osx.sh`
 
