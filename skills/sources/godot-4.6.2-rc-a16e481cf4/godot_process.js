@@ -23,6 +23,11 @@ const REPLACE_RULES = [
         replace: `_emscripten_get_now=nowPolyfill`,
     },
     {
+        name: "display-pixel-ratio",
+        match: `getPixelRatio:function(){return GodotDisplayScreen.hidpi?window.devicePixelRatio||1:1}`,
+        replace: `getPixelRatio:function(){if(!GodotDisplayScreen.hidpi){return 1}let ratio=Number(window.devicePixelRatio)||1;try{if(typeof wx!=="undefined"){const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync&&wx.getSystemInfoSync();if(info){ratio=Number(info.pixelRatio||info.devicePixelRatio||ratio)||ratio}}}catch(e){}return Math.max(1,ratio)}`,
+    },
+    {
         name: "getvalue-i64",
         match: `case"i64":abort("to do getValue(i64) use WASM_BIGINT");`,
         replace: `case"i64":return HEAP32[ptr>>2];`,

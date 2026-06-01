@@ -122,6 +122,7 @@ Expected:
 Check:
 
 - sharp output on high-DPI screens
+- iOS high performance mode reports a real `pixelRatio` through `wx.getWindowInfo()`
 - correct fullscreen/window sizing
 - keyboard type/replace/confirm/dismiss behavior
 

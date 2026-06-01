@@ -29,15 +29,22 @@
             if (wxApi && typeof wxApi.getWindowInfo === "function") {
                 return wxApi.getWindowInfo();
             }
+            if (wxApi && typeof wxApi.getSystemInfoSync === "function") {
+                return wxApi.getSystemInfoSync();
+            }
             return null;
         }
 
         getDevicePixelRatio() {
             const info = this.getWindowInfo();
-            if (info && info.pixelRatio) {
-                return info.pixelRatio;
-            }
-            return windowObject.devicePixelRatio || 1;
+            const ratio =
+                Number(info && (info.pixelRatio || info.devicePixelRatio)) ||
+                Number(windowObject.devicePixelRatio) ||
+                1;
+
+            windowObject.devicePixelRatio = ratio;
+            gameGlobal.__godotMinigamePixelRatio = ratio;
+            return Math.max(1, ratio);
         }
 
         getViewportSize() {
@@ -202,6 +209,18 @@
             ctx.fill();
         }
 
+        drawCoverImage(ctx, image, width, height) {
+            if (!image.width || !image.height) {
+                ctx.drawImage(image, 0, 0, width, height);
+                return;
+            }
+
+            const scale = Math.max(width / image.width, height / image.height);
+            const drawWidth = image.width * scale;
+            const drawHeight = image.height * scale;
+            ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+        }
+
         render() {
             if (!this.gl) {
                 return;
@@ -216,7 +235,7 @@
             ctx.imageSmoothingQuality = "high";
 
             if (this.backgroundImage) {
-                ctx.drawImage(this.backgroundImage, 0, 0, width, height);
+                this.drawCoverImage(ctx, this.backgroundImage, width, height);
             }
 
             const barConfig = this.config.barConfig.style;
@@ -297,14 +316,31 @@
             this.gl.vertexAttribPointer(this.texCoordLocation, 2, this.gl.FLOAT, false, 0, 0);
 
             this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+
+            if (typeof this.gl.flush === "function") {
+                this.gl.flush();
+            }
+            if (typeof this.gl.commit === "function") {
+                this.gl.commit();
+            }
+        }
+
+        normalizeProgress(progress) {
+            const value = Number(progress) || 0;
+            return Math.max(0, Math.min(1, value > 1 ? value / 100 : value));
         }
 
         updateProgress(progress, text) {
-            this.progress = progress;
+            const normalized = this.normalizeProgress(progress);
+            this.progress = Math.max(this.progress || 0, normalized);
             if (text) {
                 this.currentText = text;
             }
             this.render();
+
+            if (typeof windowObject.requestAnimationFrame === "function") {
+                windowObject.requestAnimationFrame(() => this.render());
+            }
         }
 
         loadGameEngine() {
@@ -322,8 +358,7 @@
 
             if (task && typeof task.onProgressUpdate === "function") {
                 task.onProgressUpdate(({ progress }) => {
-                    this.progress = progress / 100;
-                    this.updateProgress(this.progress, this.config.textConfig.downloadingText[0]);
+                    this.updateProgress(progress, this.config.textConfig.downloadingText[0]);
                 });
             }
         }
