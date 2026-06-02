@@ -37,14 +37,35 @@
 
         getDevicePixelRatio() {
             const info = this.getWindowInfo();
-            const ratio =
+            const ratio = Math.max(
+                1,
                 Number(info && (info.pixelRatio || info.devicePixelRatio)) ||
+                Number(gameGlobal.__godotMinigamePixelRatio) ||
                 Number(windowObject.devicePixelRatio) ||
-                1;
+                1
+            );
 
-            windowObject.devicePixelRatio = ratio;
             gameGlobal.__godotMinigamePixelRatio = ratio;
-            return Math.max(1, ratio);
+            this.syncWindowDevicePixelRatio(ratio);
+            return ratio;
+        }
+
+        syncWindowDevicePixelRatio(ratio) {
+            try {
+                const descriptor = Object.getOwnPropertyDescriptor(windowObject, "devicePixelRatio");
+                if (!descriptor || descriptor.configurable) {
+                    Object.defineProperty(windowObject, "devicePixelRatio", {
+                        configurable: true,
+                        get: () => gameGlobal.__godotMinigamePixelRatio || ratio,
+                    });
+                } else if (descriptor.writable || descriptor.set) {
+                    windowObject.devicePixelRatio = ratio;
+                }
+            } catch (err) {
+                try {
+                    windowObject.devicePixelRatio = ratio;
+                } catch (assignErr) {}
+            }
         }
 
         getViewportSize() {
@@ -158,18 +179,46 @@
             return program;
         }
 
-        loadImages() {
-            if (this.config.materialConfig.backgroundImage) {
-                this.backgroundImage = new Image();
-                this.backgroundImage.src = this.config.materialConfig.backgroundImage;
-                this.backgroundImage.onload = this.render.bind(this);
+        imageSourceFallbacks(src) {
+            if (!src || /^(https?:|data:|wxfile:|file:)/.test(src)) {
+                return src ? [src] : [];
             }
 
-            if (this.config.materialConfig.iconImage) {
-                this.iconImage = new Image();
-                this.iconImage.src = this.config.materialConfig.iconImage;
-                this.iconImage.onload = this.render.bind(this);
+            const relative = src.charAt(0) === "/" ? src.slice(1) : src;
+            return [relative, "/" + relative].filter((item, index, list) => item && list.indexOf(item) === index);
+        }
+
+        loadImage(src, label, assign) {
+            const sources = this.imageSourceFallbacks(src);
+            if (!sources.length) {
+                return;
             }
+
+            const image = new Image();
+            let index = 0;
+            image.onload = () => {
+                assign(image);
+                this.render();
+            };
+            image.onerror = (event) => {
+                if (index + 1 < sources.length) {
+                    index += 1;
+                    image.src = sources[index];
+                    return;
+                }
+                console.warn("[godot-loader] image load failed", label, image.src, event && (event.errMsg || event.message || event));
+            };
+            image.src = sources[index];
+        }
+
+        loadImages() {
+            const materialConfig = this.config.materialConfig || {};
+            this.loadImage(materialConfig.backgroundImage, "background", (image) => {
+                this.backgroundImage = image;
+            });
+            this.loadImage(materialConfig.iconImage, "icon", (image) => {
+                this.iconImage = image;
+            });
         }
 
         resizeCanvases() {

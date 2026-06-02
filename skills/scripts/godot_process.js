@@ -29,7 +29,7 @@ const PERFORMANCE_TIME_TEMPLATE = {
 }
 const DISPLAY_PIXEL_RATIO_TEMPLATE = {
     match: `getPixelRatio:function(){return GodotDisplayScreen.hidpi?window.devicePixelRatio||1:1}`,
-    replace: `getPixelRatio:function(){if(!GodotDisplayScreen.hidpi){return 1}let ratio=Number(window.devicePixelRatio)||1;try{if(typeof wx!=="undefined"){const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync&&wx.getSystemInfoSync();if(info){ratio=Number(info.pixelRatio||info.devicePixelRatio||ratio)||ratio}}}catch(e){}return Math.max(1,ratio)}`
+    replace: `getPixelRatio:function(){if(!GodotDisplayScreen.hidpi){return 1}let ratio=Number((typeof GameGlobal!=="undefined"&&GameGlobal.__godotMinigamePixelRatio)||window.devicePixelRatio)||1;try{if(typeof wx!=="undefined"){const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync&&wx.getSystemInfoSync();if(info){ratio=Number(info.pixelRatio||info.devicePixelRatio||ratio)||ratio}}}catch(e){}return Math.max(1,ratio)}`
 }
 // getValue, setValue
 const GET_VALUE_TEMPLATE = {

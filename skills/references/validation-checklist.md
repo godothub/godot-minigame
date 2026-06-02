@@ -123,6 +123,7 @@ Check:
 
 - sharp output on high-DPI screens
 - iOS high performance mode reports a real `pixelRatio` through `wx.getWindowInfo()`
+- startup does not warn about assigning to read-only `window.devicePixelRatio`
 - correct fullscreen/window sizing
 - keyboard type/replace/confirm/dismiss behavior
 
