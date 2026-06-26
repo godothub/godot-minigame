@@ -1310,9 +1310,11 @@ const _GodotAudio = {
 		WX: {
 			DEBUG: false,
 			MAX_POOL_SIZE: 16,
+			MAX_SYNC_REGISTER_SECONDS: 0.75,
 
 			// Storage for registered streams
 			streamPaths: null, // Map<streamId, {path, loopMode, framesTotal}>
+			skippedStreams: null, // Set<streamId> for long streams that must use native file playback
 			activePlaybacks: null, // Map<playbackId, {ctx: InnerAudioContext, busIndex: number, baseVolume: number}>
 			contextPool: null, // Array of reusable InnerAudioContext instances
 			busVolumes: null, // Map<busIndex, volumeDb>
@@ -1325,6 +1327,7 @@ const _GodotAudio = {
 				}
 
 				GodotAudio.WX.streamPaths = new Map();
+				GodotAudio.WX.skippedStreams = new Set();
 				GodotAudio.WX.activePlaybacks = new Map();
 				GodotAudio.WX.contextPool = [];
 				GodotAudio.WX.busVolumes = new Map();
@@ -1345,6 +1348,7 @@ const _GodotAudio = {
 						getStats: () => {
 							return {
 								streams: GodotAudio.WX.streamPaths.size,
+								skippedStreams: GodotAudio.WX.skippedStreams.size,
 								activePlaybacks: GodotAudio.WX.activePlaybacks.size,
 								pooledContexts: GodotAudio.WX.contextPool.length,
 							};
@@ -1588,6 +1592,20 @@ const _GodotAudio = {
 				return buffer;
 			},
 
+			getMaxSyncRegisterFrames: function (sampleRate) {
+				const root =
+					typeof GameGlobal !== "undefined"
+						? GameGlobal
+						: typeof globalThis !== "undefined"
+							? globalThis
+							: {};
+				const overrideSeconds = Number(root.__godotMinigameMaxSyncAudioRegisterSeconds);
+				const seconds = Number.isFinite(overrideSeconds)
+					? overrideSeconds
+					: GodotAudio.WX.MAX_SYNC_REGISTER_SECONDS;
+				return Math.max(0, seconds) * sampleRate;
+			},
+
 			// Register a stream (store PCM data as WAV file)
 			registerStream: function (streamObjectId, framesPtr, framesTotal, loopMode, loopBegin, loopEnd) {
 				// Check if already registered - avoid duplicate processing
@@ -1595,10 +1613,24 @@ const _GodotAudio = {
 					GodotAudio.WX.log(`Stream ${streamObjectId} already registered, skipping`);
 					return;
 				}
+				if (GodotAudio.WX.skippedStreams.has(streamObjectId)) {
+					return;
+				}
 
 				const sampleRate = 44100;
 				const audioDuration = framesTotal / sampleRate;
 				const estimatedSize = framesTotal * 4; // 2 channels * 2 bytes per sample
+				const maxSyncRegisterFrames = GodotAudio.WX.getMaxSyncRegisterFrames(sampleRate);
+
+				if (maxSyncRegisterFrames > 0 && framesTotal > maxSyncRegisterFrames) {
+					GodotAudio.WX.skippedStreams.add(streamObjectId);
+					console.warn(
+						`[GodotAudio.WX] Skipping long Godot audio stream ${streamObjectId}: ` +
+							`${audioDuration.toFixed(2)}s would synchronously encode/write WAV. ` +
+							`Use wx.createInnerAudioContext with the original audio file instead.`
+					);
+					return;
+				}
 
 				GodotAudio.WX.log(
 					`Registering stream ${streamObjectId}: ${framesTotal} frames (${audioDuration.toFixed(2)}s), ~${(
@@ -1684,6 +1716,7 @@ const _GodotAudio = {
 
 				// Remove from registry
 				GodotAudio.WX.streamPaths.delete(streamObjectId);
+				GodotAudio.WX.skippedStreams.delete(streamObjectId);
 			},
 
 			// Start sample playback
@@ -1693,6 +1726,10 @@ const _GodotAudio = {
 				// Get stream info
 				const streamInfo = GodotAudio.WX.streamPaths.get(streamObjectId);
 				if (!streamInfo) {
+					if (GodotAudio.WX.skippedStreams.has(streamObjectId)) {
+						GodotAudio.WX.log(`Ignored skipped long stream ${streamObjectId}`);
+						return;
+					}
 					GodotAudio.WX.error(`Stream ${streamObjectId} not registered`);
 					return;
 				}
@@ -2170,6 +2207,12 @@ const _GodotAudio = {
 	 */
 	godot_audio_sample_stream_is_registered: function (streamObjectIdStrPtr) {
 		const streamObjectId = GodotRuntime.parseString(streamObjectIdStrPtr);
+		if (typeof wx !== "undefined") {
+			return Number(
+				(GodotAudio.WX.streamPaths && GodotAudio.WX.streamPaths.has(streamObjectId)) ||
+					(GodotAudio.WX.skippedStreams && GodotAudio.WX.skippedStreams.has(streamObjectId))
+			);
+		}
 		return Number(GodotAudio.Sample.getSampleOrNull(streamObjectId) != null);
 	},
 
