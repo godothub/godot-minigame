@@ -1701,6 +1701,11 @@ const _GodotAudio = {
 
 				const streamInfo = GodotAudio.WX.streamPaths.get(streamObjectId);
 				if (!streamInfo) {
+					if (GodotAudio.WX.skippedStreams.has(streamObjectId)) {
+						GodotAudio.WX.skippedStreams.delete(streamObjectId);
+						GodotAudio.WX.log(`Removed skipped long stream ${streamObjectId}`);
+						return;
+					}
 					GodotAudio.WX.log(`Stream ${streamObjectId} not found`);
 					return;
 				}
