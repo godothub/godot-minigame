@@ -29,15 +29,43 @@
             if (wxApi && typeof wxApi.getWindowInfo === "function") {
                 return wxApi.getWindowInfo();
             }
+            if (wxApi && typeof wxApi.getSystemInfoSync === "function") {
+                return wxApi.getSystemInfoSync();
+            }
             return null;
         }
 
         getDevicePixelRatio() {
             const info = this.getWindowInfo();
-            if (info && info.pixelRatio) {
-                return info.pixelRatio;
+            const ratio = Math.max(
+                1,
+                Number(info && (info.pixelRatio || info.devicePixelRatio)) ||
+                Number(gameGlobal.__godotMinigamePixelRatio) ||
+                Number(windowObject.devicePixelRatio) ||
+                1
+            );
+
+            gameGlobal.__godotMinigamePixelRatio = ratio;
+            this.syncWindowDevicePixelRatio(ratio);
+            return ratio;
+        }
+
+        syncWindowDevicePixelRatio(ratio) {
+            try {
+                const descriptor = Object.getOwnPropertyDescriptor(windowObject, "devicePixelRatio");
+                if (!descriptor || descriptor.configurable) {
+                    Object.defineProperty(windowObject, "devicePixelRatio", {
+                        configurable: true,
+                        get: () => gameGlobal.__godotMinigamePixelRatio || ratio,
+                    });
+                } else if (descriptor.writable || descriptor.set) {
+                    windowObject.devicePixelRatio = ratio;
+                }
+            } catch (err) {
+                try {
+                    windowObject.devicePixelRatio = ratio;
+                } catch (assignErr) {}
             }
-            return windowObject.devicePixelRatio || 1;
         }
 
         getViewportSize() {
@@ -151,18 +179,46 @@
             return program;
         }
 
-        loadImages() {
-            if (this.config.materialConfig.backgroundImage) {
-                this.backgroundImage = new Image();
-                this.backgroundImage.src = this.config.materialConfig.backgroundImage;
-                this.backgroundImage.onload = this.render.bind(this);
+        imageSourceFallbacks(src) {
+            if (!src || /^(https?:|data:|wxfile:|file:)/.test(src)) {
+                return src ? [src] : [];
             }
 
-            if (this.config.materialConfig.iconImage) {
-                this.iconImage = new Image();
-                this.iconImage.src = this.config.materialConfig.iconImage;
-                this.iconImage.onload = this.render.bind(this);
+            const relative = src.charAt(0) === "/" ? src.slice(1) : src;
+            return [relative, "/" + relative].filter((item, index, list) => item && list.indexOf(item) === index);
+        }
+
+        loadImage(src, label, assign) {
+            const sources = this.imageSourceFallbacks(src);
+            if (!sources.length) {
+                return;
             }
+
+            const image = new Image();
+            let index = 0;
+            image.onload = () => {
+                assign(image);
+                this.render();
+            };
+            image.onerror = (event) => {
+                if (index + 1 < sources.length) {
+                    index += 1;
+                    image.src = sources[index];
+                    return;
+                }
+                console.warn("[godot-loader] image load failed", label, image.src, event && (event.errMsg || event.message || event));
+            };
+            image.src = sources[index];
+        }
+
+        loadImages() {
+            const materialConfig = this.config.materialConfig || {};
+            this.loadImage(materialConfig.backgroundImage, "background", (image) => {
+                this.backgroundImage = image;
+            });
+            this.loadImage(materialConfig.iconImage, "icon", (image) => {
+                this.iconImage = image;
+            });
         }
 
         resizeCanvases() {
@@ -202,6 +258,18 @@
             ctx.fill();
         }
 
+        drawCoverImage(ctx, image, width, height) {
+            if (!image.width || !image.height) {
+                ctx.drawImage(image, 0, 0, width, height);
+                return;
+            }
+
+            const scale = Math.max(width / image.width, height / image.height);
+            const drawWidth = image.width * scale;
+            const drawHeight = image.height * scale;
+            ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+        }
+
         render() {
             if (!this.gl) {
                 return;
@@ -216,7 +284,7 @@
             ctx.imageSmoothingQuality = "high";
 
             if (this.backgroundImage) {
-                ctx.drawImage(this.backgroundImage, 0, 0, width, height);
+                this.drawCoverImage(ctx, this.backgroundImage, width, height);
             }
 
             const barConfig = this.config.barConfig.style;
@@ -297,14 +365,31 @@
             this.gl.vertexAttribPointer(this.texCoordLocation, 2, this.gl.FLOAT, false, 0, 0);
 
             this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+
+            if (typeof this.gl.flush === "function") {
+                this.gl.flush();
+            }
+            if (typeof this.gl.commit === "function") {
+                this.gl.commit();
+            }
+        }
+
+        normalizeProgress(progress) {
+            const value = Number(progress) || 0;
+            return Math.max(0, Math.min(1, value > 1 ? value / 100 : value));
         }
 
         updateProgress(progress, text) {
-            this.progress = progress;
+            const normalized = this.normalizeProgress(progress);
+            this.progress = Math.max(this.progress || 0, normalized);
             if (text) {
                 this.currentText = text;
             }
             this.render();
+
+            if (typeof windowObject.requestAnimationFrame === "function") {
+                windowObject.requestAnimationFrame(() => this.render());
+            }
         }
 
         loadGameEngine() {
@@ -322,8 +407,7 @@
 
             if (task && typeof task.onProgressUpdate === "function") {
                 task.onProgressUpdate(({ progress }) => {
-                    this.progress = progress / 100;
-                    this.updateProgress(this.progress, this.config.textConfig.downloadingText[0]);
+                    this.updateProgress(progress, this.config.textConfig.downloadingText[0]);
                 });
             }
         }

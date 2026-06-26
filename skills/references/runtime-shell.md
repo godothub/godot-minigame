@@ -24,6 +24,9 @@ The bundled public adapter depends on only these pieces from the old SDK contrac
   - `getGodotPath`
 - `GameGlobal.nowPolyfill`
   - required by the bundled `godot_process.js` patching step
+- `GameGlobal.__godotMinigamePixelRatio`
+  - synchronized from `wx.getWindowInfo().pixelRatio` when available so the loader and generated Godot display code render sharply on iOS high-DPI devices
+  - `godot-loader.js` installs a `window.devicePixelRatio` getter only when the host property is configurable, and otherwise avoids assigning to read-only runtime properties
 
 Keep these compatibility entries even though the current Godot-side runtime does not call them directly:
 
@@ -55,6 +58,14 @@ The minimal runtime intentionally preserves:
 - `GODOTSDK.copy_to_fs`
 - `GODOTSDK.load_pack`
 - `WXWebAssembly -> WebAssembly` override
+
+## What The Minimal `godot-loader.js` Handles
+
+- Uses `wx.getWindowInfo().pixelRatio`, `GameGlobal.__godotMinigamePixelRatio`, or `devicePixelRatio` for high-DPI loading output
+- Loads images after installing `onload`/`onerror` handlers and retries relative/absolute local paths
+- Draws the loading background with cover behavior instead of stretching it
+- Normalizes subpackage progress whether WeChat reports `0..100` or `0..1`
+- Flushes and commits the WebGL loading frame when the runtime exposes explicit swap control
 
 ## What Was Deliberately Removed
 

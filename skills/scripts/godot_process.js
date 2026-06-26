@@ -27,6 +27,10 @@ const PERFORMANCE_TIME_TEMPLATE = {
     match: `_emscripten_get_now=()=>performance.now()`,
     replace: `_emscripten_get_now=nowPolyfill`
 }
+const DISPLAY_PIXEL_RATIO_TEMPLATE = {
+    match: `getPixelRatio:function(){return GodotDisplayScreen.hidpi?window.devicePixelRatio||1:1}`,
+    replace: `getPixelRatio:function(){if(!GodotDisplayScreen.hidpi){return 1}let ratio=Number((typeof GameGlobal!=="undefined"&&GameGlobal.__godotMinigamePixelRatio)||window.devicePixelRatio)||1;try{if(typeof wx!=="undefined"){const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync&&wx.getSystemInfoSync();if(info){ratio=Number(info.pixelRatio||info.devicePixelRatio||ratio)||ratio}}}catch(e){}return Math.max(1,ratio)}`
+}
 // getValue, setValue
 const GET_VALUE_TEMPLATE = {
     match: `case"i64":abort("to do getValue(i64) use WASM_BIGINT");`,
@@ -64,6 +68,7 @@ const newGodotJsContent = originGodotJsContent.
 //     .replace(WEB_GL_INSTANCE_TEMPLATE.match, WEB_GL_INSTANCE_TEMPLATE.replace)
     .replace(WEB_TILE_DISABLE_TEMPLATE.match, WEB_TILE_DISABLE_TEMPLATE.replace)
     .replace(PERFORMANCE_TIME_TEMPLATE.match, PERFORMANCE_TIME_TEMPLATE.replace)
+    .replace(DISPLAY_PIXEL_RATIO_TEMPLATE.match, DISPLAY_PIXEL_RATIO_TEMPLATE.replace)
     .replace(GET_VALUE_TEMPLATE.match, GET_VALUE_TEMPLATE.replace)
     .replace(SET_VALUE_TEMPLATE.match, SET_VALUE_TEMPLATE.replace)
     .replace(WX_FS_TEMPLATE.match, WX_FS_TEMPLATE.replace)
